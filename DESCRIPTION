@@ -1,10 +1,14 @@
 Package: biomod2plus
 Type: Package
-Title: What the package does (short line)
+Title: A set of handy functions to analyze biomod2 results
 Version: 1.0
 Date: 2018-10-11
-Author: Who wrote it
-Maintainer: Who to complain to <yourfault@somewhere.net>
-Description: More about what it does (maybe more than one line)
-License: What license is it under?
+Author: João Gonçalves <joaofgo@gmail.com>
+Maintainer: João Gonçalves <joaofgo@gmail.com> 
+Description: Complements biomod2 package with a couple of useful functions used to summarize and visualize output results and data
+Depends: R (>= 3.4.0)
+Imports: raster, dplyr, ggplot2, biomod2, tools
+Suggests: stats, utils
+License: GPL-3
 RoxygenNote: 6.0.1
+Encoding: UTF-8
