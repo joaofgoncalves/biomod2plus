@@ -11,7 +11,7 @@ responsePlots(biomodModelOut, Data, modelsToUse, showVars = "all",
   outFolder = getwd(), width = NA, height = NA, dpi = 300)
 }
 \arguments{
-\item{biomodModelOut}{A \link[biomod2]{BIOMOD.models.out} class object.}
+\item{biomodModelOut}{A \link[biomod2]{BIOMOD.models.out-class} class object}
 
 \item{Data}{A \code{data.frame} or \code{RasterStack} containing the data used to make 
 the response plots. They must have the same names as the ones used to calibrate the model.}

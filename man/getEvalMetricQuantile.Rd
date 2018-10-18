@@ -7,7 +7,7 @@
 getEvalMetricQuantile(myBiomodModelOut, qt = 0.75, evalMetric = "TSS")
 }
 \arguments{
-\item{myBiomodModelOut}{A \link[biomod2]{BIOMOD.models.out} class object.}
+\item{myBiomodModelOut}{A \link[biomod2]{BIOMOD.models.out-class} class object.}
 
 \item{qt}{The target quantile between 0 and 1.}
 

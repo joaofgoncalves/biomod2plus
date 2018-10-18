@@ -2,10 +2,41 @@
 % Please edit documentation in R/biomod2plus.R
 \name{evalMetricPlot}
 \alias{evalMetricPlot}
-\title{A plot for evaluation metrics}
+\title{Plot evaluation metrics calculated by biomod2}
 \usage{
-evalMetricPlot(biomodModelOut, evalMetric = "TSS", by = "algo",
-  sort = TRUE, removeFull = FALSE)
+evalMetricPlot(biomodModelOut, evalMetric = "TSS", sort = TRUE,
+  removeFull = FALSE, save = FALSE, plot = TRUE, outputFolder = getwd(),
+  filename = "evalPlot.png", ...)
+}
+\arguments{
+\item{biomodModelOut}{A \link[biomod2]{BIOMOD.models.out-class} class object}
+
+\item{evalMetric}{String defining the evaluation metric (e.g., 'ROC', 'TSS', 'KAPPA')}
+
+\item{sort}{Sort the bar plot by the average evaluation score (best to worst, default: TRUE)}
+
+\item{removeFull}{Remove full evaluation rounds? (default: FALSE)}
+
+\item{save}{Save the plot? (default: FALSE)}
+
+\item{plot}{Plot to device? (default: TRUE)}
+
+\item{outputFolder}{Output folder where the plot will be save to (default: \code{getwd()})}
+
+\item{filename}{Filename of the image containing the plot (default:"evalPlot.png")}
+
+\item{...}{Other arguments passed to \code{ggsave} function such as height, width, dpi, etc.}
+}
+\value{
+A list object with the following components:
+\itemize{
+   \item biomodEvalObj - A full array with all biomod2 evaluation metrics
+   \item evalDataFrame - A data.frame with evaluation scores for the target metric
+   \item evalSummary - A summary data.frame with average and std-error values for 
+   the target metric
+   \item ggPlotObj - The ggplot2 object used for plotting the evaluation scores
+
+}
 }
 \description{
 Makes a plot using ggplot2 for one selected evaluation metric for each 

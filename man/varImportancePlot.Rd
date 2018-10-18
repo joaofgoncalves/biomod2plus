@@ -9,6 +9,17 @@ varImportancePlot(biomodModelsOut, by = "all", sortVars = TRUE,
   plot = TRUE, outputFolder = getwd(), filename = "VarImportancePlot.png",
   ...)
 }
+\arguments{
+\item{biomodModelsOut}{A \link[biomod2]{BIOMOD.models.out-class} class object.}
+
+\item{by}{Options are "all" (default) for plotting the average across all PA sets, algorithms 
+and evaluation rounds or "algo" to plot the averag importance scores by modelling 
+algorithm and across PA sets and evaluation rounds}
+
+\item{sortVars}{}
+
+\item{...}{}
+}
 \description{
 Plot variable average importance scores across different PA sets, algorithms and 
 evaluation rounds. \code{ggplot2} graphics are used to make the plots.

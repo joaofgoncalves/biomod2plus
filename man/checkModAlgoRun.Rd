@@ -7,7 +7,7 @@
 checkModAlgoRun(biomodModelOut)
 }
 \arguments{
-\item{biomodModelOut}{A \link[biomod2]{BIOMOD.models.out} class object.}
+\item{biomodModelOut}{A \link[biomod2]{BIOMOD.models.out-class} class object.}
 }
 \value{
 A named logical vector specifying which models were run.

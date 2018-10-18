@@ -79,11 +79,11 @@ abbrevNames <- function(x) paste(str_to_title(unlist(strsplit(gsub("\\.","",x),"
 #' list object with one \code{RasterStack} per scenario. Useful for forecasting (for example) 
 #' multiple climate change RCP scenarios or future dates (or both).
 #' 
-#' @param myBiomodModelOut A \link[biomod2]{BIOMOD.models.out} class object.
-#' @param myBiomodProj A \link[biomod2]{BIOMOD.projection.out} class object.
-#' @param myBiomodEM A \link[biomod2]{BIOMOD.EnsembleModeling.out} class object
+#' @param myBiomodModelOut A \link[biomod2]{BIOMOD.models.out-class} class object.
+#' @param myBiomodProj A \link[biomod2]{BIOMOD.projection.out-class} class object.
+#' @param myBiomodEM A \link[biomod2]{BIOMOD.EnsembleModeling.out-class} class object
 #' @param modelsToUse A character vector listing the models to use.
-#' @param projNames The character vector with names for each different scenario. 
+#' @param scenarioNames The character vector with names for each different scenario. 
 #' Must equal the length of \code{rstStackList}.
 #' @param rstStackList A list object with one \code{RasterStack} object by scenario. 
 #' The list may be named and these names will be used as the input of \code{proj.name} 
@@ -149,7 +149,7 @@ projectMultipleScenarios <- function(myBiomodModelOut, myBiomodProj, myBiomodEM,
 #' calculate the threshold used in \link[biomod2]{BIOMOD_EnsembleModeling} function 
 #' to set the parameter \code{eval.metric.quality.threshold}.
 #' 
-#' @param myBiomodModelOut A \link[biomod2]{BIOMOD.models.out} class object.
+#' @param myBiomodModelOut A \link[biomod2]{BIOMOD.models.out-class} class object.
 #' @param qt The target quantile between 0 and 1.
 #' @param evalMetric A character string defining the evaluation metric. 
 #' Available options are: 'KAPPA', 'TSS', 'ROC', 'FAR', 'SR', 'ACCURACY', 'BIAS', 
@@ -199,7 +199,7 @@ intersectMask <- function(x){
 #' A simple function used to verify which models were actually run by \code{biomod2} 
 #' for a given target species.
 #' 
-#' @param biomodModelOut A \link[biomod2]{BIOMOD.models.out} class object.
+#' @param biomodModelOut A \link[biomod2]{BIOMOD.models.out-class} class object.
 #' 
 #' @return A named logical vector specifying which models were run.
 #' @export
@@ -226,7 +226,7 @@ checkModAlgoRun <- function(biomodModelOut){
 #' 
 #' A flexiblw function used to produce response plots using \code{ggplot2} package. 
 #' 
-#' @param biomodModelOut A \link[biomod2]{BIOMOD.models.out} class object.
+#' @param biomodModelOut A \link[biomod2]{BIOMOD.models.out-class} class object
 #' @param Data A \code{data.frame} or \code{RasterStack} containing the data used to make 
 #' the response plots. They must have the same names as the ones used to calibrate the model.
 #' @param modelsToUse
@@ -379,6 +379,35 @@ responsePlots <- function(biomodModelOut, Data, modelsToUse, showVars = "all",
 #' Plot variable average importance scores across different PA sets, algorithms and 
 #' evaluation rounds. \code{ggplot2} graphics are used to make the plots.
 #' 
+#' @param biomodModelsOut A \link[biomod2]{BIOMOD.models.out-class} class object.
+#' @param by Options are "all" (default) for plotting the average across all PA sets, algorithms 
+#' and evaluation rounds or "algo" to plot the averag importance scores by modelling 
+#' algorithm and across PA sets and evaluation rounds
+#' @param sortVars 
+#' @param filterAlgos
+#' @param plotType
+#' @param save
+#' @param plot
+#' @param outputFolder
+#' @param filename
+#' @param ... 
+#' 
+#' @importFrom biomod2 get_variables_importance
+#' @importFrom dplyr arrange 
+#' @importFrom dplyr mutate
+#' @importFrom magrittr %>%
+#' @importFrom tidyr gather
+#' @importFrom ggplot2 ggplot
+#' @importFrom ggplot2 geom_bar
+#' @importFrom ggplot2 geom_errorbar
+#' @importFrom ggplot2 xlab
+#' @importFrom ggplot2 ylab
+#' @importFrom ggplot2 theme_bw
+#' @importFrom ggplot2 theme
+#' @importFrom ggplot2 element_text
+#' @importFrom ggplot2 aes
+#' @importFrom ggplot2 ggsave
+#' 
 #' @export
 #' 
 
@@ -388,7 +417,7 @@ varImportancePlot <- function(biomodModelsOut, by="all", sortVars=TRUE,
                               filename="VarImportancePlot.png",...){ 
   
   # Calculate variable importance
-  varImportance <- get_variables_importance(biomodModelsOut)
+  varImportance <- biomod2::get_variables_importance(biomodModelsOut)
   
   # Make plot for each variable and across all PA sets, Algos and eval rounds
   if(by=="all"){
@@ -432,7 +461,7 @@ varImportancePlot <- function(biomodModelsOut, by="all", sortVars=TRUE,
       mutate(varNames = as.factor(rownames(.))) %>% 
       gather("modAlgo","varImpSTE",setdiff(colnames(.),"varNames"))
     
-    # Join data
+    # Join data with average values and std-errors
     vimpDF <- cbind(varImportanceByVariableAVG, 
                     varImpSTE=varImportanceByVariableSTE[,"varImpSTE"])
     
@@ -441,7 +470,7 @@ varImportancePlot <- function(biomodModelsOut, by="all", sortVars=TRUE,
       vimpDF <- vimpDF %>% filter(modAlgo %in% filterAlgos)
     }
     
-    # Make plot
+    # Make ggplot object with var importance scores
     g <- ggplot(vimpDF,aes(x= varNames, y = varImpAVG)) + 
       geom_bar(stat="identity") + 
       geom_errorbar(aes(ymin=varImpAVG - 2*varImpSTE, ymax=varImpAVG + 2*varImpSTE), 
@@ -461,10 +490,12 @@ varImportancePlot <- function(biomodModelsOut, by="all", sortVars=TRUE,
       }
   }
   
+  # Plot to device?
   if(plot){
     plot(g)
   }
   
+  # Save plot to image file?
   if(save){
     suppressMessages(ggsave(filename = paste(outputFolder,"/",filename,sep=""), 
                             plot = g, ...))
@@ -474,16 +505,51 @@ varImportancePlot <- function(biomodModelsOut, by="all", sortVars=TRUE,
   
 }
 
-#' A plot for evaluation metrics
+#' Plot evaluation metrics calculated by biomod2
 #' 
 #' Makes a plot using ggplot2 for one selected evaluation metric for each 
 #' modelling algorithm
+#' 
+#' @param biomodModelOut A \link[biomod2]{BIOMOD.models.out-class} class object
+#' @param evalMetric String defining the evaluation metric (e.g., 'ROC', 'TSS', 'KAPPA')
+#' @param sort Sort the bar plot by the average evaluation score (best to worst, default: TRUE)
+#' @param removeFull Remove full evaluation rounds? (default: FALSE)
+#' @param save Save the plot? (default: FALSE)
+#' @param plot Plot to device? (default: TRUE)
+#' @param outputFolder Output folder where the plot will be save to (default: \code{getwd()})
+#' @param filename Filename of the image containing the plot (default:"evalPlot.png")
+#' @param ... Other arguments passed to \code{ggsave} function such as height, width, dpi, etc.
+#' 
+#' @return A list object with the following components:
+#' \itemize{
+#'    \item biomodEvalObj - A full array with all biomod2 evaluation metrics
+#'    \item evalDataFrame - A data.frame with evaluation scores for the target metric
+#'    \item evalSummary - A summary data.frame with average and std-error values for 
+#'    the target metric
+#'    \item ggPlotObj - The ggplot2 object used for plotting the evaluation scores
+#' 
+#' }
+#' 
+#' @importFrom biomod2 get_evaluations
+#' @importFrom dplyr select
+#' @importFrom dplyr arrange
+#' @importFrom ggplot2 ggplot
+#' @importFrom ggplot2 geom_bar
+#' @importFrom ggplot2 geom_errorbar
+#' @importFrom ggplot2 theme_bw
+#' @importFrom ggplot2 theme
+#' @importFrom ggplot2 ylab
+#' @importFrom ggplot2 xlab
+#' @importFrom ggplot2 element_text
+#' @importFrom ggplot2 aes
+#' @importFrom ggplot2 ggsave
 #' 
 #' @export
 #' 
 
 evalMetricPlot <- function(biomodModelOut, evalMetric = "TSS", sort = TRUE, 
-                           removeFull=FALSE){
+                           removeFull=FALSE, save=FALSE, plot=TRUE, outputFolder=getwd(),
+                           filename="evalPlot.png", ...){
   
   myBiomodModelEval <- biomod2::get_evaluations(biomodModelOut)
   
@@ -513,7 +579,14 @@ evalMetricPlot <- function(biomodModelOut, evalMetric = "TSS", sort = TRUE,
     ylab(paste(evalMetric,"score")) + 
     xlab("Variables")
   
-  plot(g)
+  if(plot){
+    plot(g)
+  }
+  
+  if(save){
+    suppressMessages(ggsave(filename = paste(outputFolder,"/",filename,sep=""), 
+                            plot = g, ...))
+  }
   
   invisible(list(biomodEvalObj = myBiomodModelEval,
                  evalDataFrame = evalDF,

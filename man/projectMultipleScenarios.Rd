@@ -8,20 +8,20 @@ projectMultipleScenarios(myBiomodModelOut, myBiomodProj, myBiomodEM,
   modelsToUse, scenarioNames = NULL, rstStackList, convert2GeoTIFF = TRUE)
 }
 \arguments{
-\item{myBiomodModelOut}{A \link[biomod2]{BIOMOD.models.out} class object.}
+\item{myBiomodModelOut}{A \link[biomod2]{BIOMOD.models.out-class} class object.}
 
-\item{myBiomodProj}{A \link[biomod2]{BIOMOD.projection.out} class object.}
+\item{myBiomodProj}{A \link[biomod2]{BIOMOD.projection.out-class} class object.}
 
-\item{myBiomodEM}{A \link[biomod2]{BIOMOD.EnsembleModeling.out} class object}
+\item{myBiomodEM}{A \link[biomod2]{BIOMOD.EnsembleModeling.out-class} class object}
 
 \item{modelsToUse}{A character vector listing the models to use.}
+
+\item{scenarioNames}{The character vector with names for each different scenario. 
+Must equal the length of \code{rstStackList}.}
 
 \item{rstStackList}{A list object with one \code{RasterStack} object by scenario. 
 The list may be named and these names will be used as the input of \code{proj.name} 
 parameter from \link[biomod2]{BIOMOD_Projection} function.}
-
-\item{projNames}{The character vector with names for each different scenario. 
-Must equal the length of \code{rstStackList}.}
 }
 \description{
 A wrapper function used to project and ensemble multiple scenarios contained in a 
