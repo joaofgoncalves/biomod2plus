@@ -5,18 +5,51 @@
 \title{Make response plots for multiple variables}
 \usage{
 responsePlots(biomodModelOut, Data, modelsToUse, showVars = "all",
-  fixedVarMetric = "mean", addMarginalPlot = TRUE, varNames = NULL,
-  marginPlotType = "histogram", plotStdErr = FALSE, plot = FALSE,
-  save = TRUE, filePrefix = "ResponsePlot_", fileSuffix = "",
-  outFolder = getwd(), width = NA, height = NA, dpi = 300)
+  fixedVarMetric = "mean", addMarginalPlot = TRUE,
+  marginPlotType = "histogram", varNames = NULL, plotStdErr = FALSE,
+  plot = FALSE, save = TRUE, filePrefix = "ResponsePlot_",
+  fileSuffix = "", outFolder = getwd(), ...)
 }
 \arguments{
 \item{biomodModelOut}{A \link[biomod2]{BIOMOD.models.out-class} class object}
 
 \item{Data}{A \code{data.frame} or \code{RasterStack} containing the data used to make 
-the response plots. They must have the same names as the ones used to calibrate the model.}
+the response plots. The data must have the same names as the ones used to fit the model.}
 
-\item{dpi}{}
+\item{modelsToUse}{A character vector specifying which models to use. The 
+\link[biomod2]{BIOMOD_LoadModels} function must be used for this purpose allowing to load 
+the models into the Global Environment so these can be used by the \link[biomod2]{response.plot2} 
+function}
+
+\item{showVars}{A character vector specifying which variables should be used. The option "all" 
+(default) uses all the variables contained in \code{Data}}
+
+\item{fixedVarMetric}{Either 'mean' (default), 'median', 'min' or 'max' specifying the 
+statistic used to fix as constant the remaining variables when the predicted response 
+is estimated for one of the variables}
+
+\item{addMarginalPlot}{Logical determining if a marginal plot, showing the distribution of 
+the target variable, is plotted (default: FALSE)}
+
+\item{marginPlotType}{Type of marginal plot to add. Valid options are: "histogram" (default), 
+"boxplot", "density", "violin" or "densigram"}
+
+\item{varNames}{Character vector with the names for each variable to be plotted}
+
+\item{plotStdErr}{Plot with std-error bands or simply plot all response lines, one 
+for each model selected (default: FALSE)}
+
+\item{plot}{Plot to device?}
+
+\item{save}{Save plot? (by default the png image format is used)}
+
+\item{filePrefix}{Filename prefix (default: "ResponsePlot_")}
+
+\item{fileSuffix}{Filename suffix (default: "")}
+
+\item{outFolder}{Output folder where the plot image will be placed (default: getwd())}
+
+\item{...}{Other parameters passed to \link[ggplot2]{ggsave}}
 }
 \value{
 A list object containing two components:     
@@ -27,7 +60,7 @@ A list object containing two components:
 }
 }
 \description{
-A flexiblw function used to produce response plots using \code{ggplot2} package.
+A flexible function used to produce response plots using \code{ggplot2} package.
 }
 \details{
 This function uses Adaptation of the Evaluation Strip method proposed by Elith et al.(2005) 
@@ -35,6 +68,9 @@ and implemented in the \link[biomod2]{response.plot2}.
 This function enables to plot the response curves of a model independently of the algorithm 
 used for building the model. It therefore permits a direct comparison of predicted responses 
 from the different statistical approaches on the same data.
+
+To use this function, first the selected models have to loaded to the Global Environment 
+using the \link[biomod2]{BIOMOD_LoadModels} function.
 }
 \seealso{
 \link[biomod2]{response.plot2}   

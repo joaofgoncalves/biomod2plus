@@ -13,7 +13,7 @@ varImportancePlot(biomodModelsOut, by = "all", sortVars = TRUE,
 \item{biomodModelsOut}{A \link[biomod2]{BIOMOD.models.out-class} class object.}
 
 \item{by}{Options are "all" (default) for plotting the average across all PA sets, algorithms 
-and evaluation rounds or "algo" to plot the averag importance scores by modelling 
+and evaluation rounds or "algo" to plot the average importance scores by modelling 
 algorithm and across PA sets and evaluation rounds}
 
 \item{sortVars}{}

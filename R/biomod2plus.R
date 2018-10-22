@@ -1,4 +1,5 @@
 
+
 #' Convert raster files from grd format to GeoTIFF
 #' 
 #' A function used to convert rasters in grd file format from a source 
@@ -10,14 +11,18 @@
 #' 
 #' @return NULL
 #' 
+#' @importFrom raster stack
+#' @importFrom raster writeRaster 
+#' @importFrom tools file_path_sans_ext
+#' 
 #' @export
 
 convertToGeoTIFF <- function(inputFolder,outputFolder){
   
   fl <- list.files(inputFolder, pattern= ".grd$", full.names = TRUE)
   
-  if(!dir.exists(outFolder)){
-    dir.create(outFolder)
+  if(!dir.exists(outputFolder)){
+    dir.create(outputFolder)
   }
   
   for(f in fl){
@@ -52,6 +57,7 @@ countDistinct <- function(x) length(unique(x))
 #' @param y Another vector
 #' 
 #' @return A logical vector containing the elements of x that are not in y
+#' 
 #' @export
 #' 
 
@@ -66,10 +72,12 @@ countDistinct <- function(x) length(unique(x))
 #' 
 #' @return A simplified string
 #' 
+#' @importFrom stringr str_to_title
+#' 
 #' @export
 #' 
 
-abbrevNames <- function(x) paste(str_to_title(unlist(strsplit(gsub("\\.","",x),"\\ "))),
+abbrevNames <- function(x) paste(stringr::str_to_title(unlist(strsplit(gsub("\\.","",x),"\\ "))),
                                  collapse="")
 
 
@@ -95,12 +103,15 @@ abbrevNames <- function(x) paste(str_to_title(unlist(strsplit(gsub("\\.","",x),"
 #' \link[biomod2]{BIOMOD_Projection}, \link[biomod2]{BIOMOD_EnsembleForecasting}, 
 #' \link{convertToGeoTIFF}
 #' 
+#' @importFrom biomod2 BIOMOD_Projection
+#' @importFrom biomod2 BIOMOD_EnsembleForecasting
+#' 
 #' @export
 #'  
 
 projectMultipleScenarios <- function(myBiomodModelOut, myBiomodProj, myBiomodEM, 
-                                       modelsToUse, scenarioNames=NULL, rstStackList, 
-                                       convert2GeoTIFF=TRUE){
+                                       modelsToUse, scenarioNames = NULL, rstStackList, 
+                                       convert2GeoTIFF = TRUE){
   
   if(is.null(scenarioNames)){
     scenarioNames <- names(rstStackList)
@@ -109,10 +120,12 @@ projectMultipleScenarios <- function(myBiomodModelOut, myBiomodProj, myBiomodEM,
     }
   }
   
+  sp <- myBiomodModelOut@sp.name
+  
   for(i in 1:length(rstStackList)){
     
     # Obtain spatiotemporal projections
-    myBiomodProj <- BIOMOD_Projection(modeling.output = myBiomodModelOut,
+    myBiomodProj <- biomod2::BIOMOD_Projection(modeling.output = myBiomodModelOut,
                                       new.env = rstStackList[[i]],
                                       proj.name = scenarioNames[i],
                                       selected.models = modelsToUse,
@@ -124,21 +137,20 @@ projectMultipleScenarios <- function(myBiomodModelOut, myBiomodProj, myBiomodEM,
                                       do.stack = TRUE)
     
     # Perform the ensembling of projections
-    myBiomodEF <- BIOMOD_EnsembleForecasting(projection.output = myBiomodProj,
+    myBiomodEF <- biomod2::BIOMOD_EnsembleForecasting(projection.output = myBiomodProj,
                                              binary.meth = c('TSS','ROC','KAPPA'),
                                              EM.output = myBiomodEM,
                                              output.format = '.grd')
     
     # Convert all output raster files to GeoTIFF
-    inFolder <- paste(getwd(),"/",sp,"/proj_",projName,sep="")
-    outFolder <- paste(inFolder,"/","GeoTIFF", sep="")
+    inFolder <- paste(getwd(), "/", sp, "/proj_", scenarioNames[i], sep="")
+    outFolder <- paste(inFolder, "/", "GeoTIFF", sep="")
     dir.create(outFolder)
     
     # Convert to GeoTIFF raster format
     if(convert2GeoTIFF){
       convertToGeoTIFF(inFolder, outFolder)
     }
-    
   } 
 }
 
@@ -157,19 +169,22 @@ projectMultipleScenarios <- function(myBiomodModelOut, myBiomodProj, myBiomodEM,
 #' 
 #' @return The target quantile value.
 #' 
+#' @importFrom biomod2 get_evaluations
+#' @importFrom stats quantile
+#' 
 #' @export
 #' 
 
-getEvalMetricQuantile <- function(myBiomodModelOut, qt = 0.75, evalMetric = "TSS"){
+getEvalMetricQuantile <- function(biomodModelOut, qt = 0.75, evalMetric = "TSS"){
   
   if(length(qt)>1){
-    qt<-qt[1]
+    qt <- qt[1]
     warning("qt parameter length is greater than 1. Using only the first element!")
   }
   
-  myBiomodModelEval <- biomod2::get_evaluations(myBiomodModelOut)
+  myBiomodModelEval <- biomod2::get_evaluations(biomodModelOut)
   evalDF <- as.data.frame(myBiomodModelEval[evalMetric,"Testing.data",,,])
-  quantileThresh <- quantile(evalDF, probs = qt, na.rm=TRUE)
+  quantileThresh <- stats::quantile(evalDF, probs = qt, na.rm=TRUE)
   
   return(quantileThresh)
 }
@@ -183,14 +198,24 @@ getEvalMetricQuantile <- function(myBiomodModelOut, qt = 0.75, evalMetric = "TSS
 #' @param x A RasterStack object
 #' 
 #' @return A corrected RasterStack
+#' 
+#' @importFrom raster getValues
+#' @importFrom raster nlayers
+#' @importFrom raster setValues
+#' @importFrom raster subset
+#' @importFrom raster stack
+#' @importFrom raster mask
+#' 
 #' @export
 #' 
 
 intersectMask <- function(x){
-  values_x <- getValues(x)
-  inter_x <- values_x %*% rep(1,nlayers(x))
-  mask <- setValues(subset(x,1),values = (inter_x>0))
-  return(stack(mask(x, intersect_mask(x))))
+  
+  values_x <- raster::getValues(x)
+  inter_x <- values_x %*% rep(1,raster::nlayers(x))
+  mask <- raster::setValues(raster::subset(x,1), values = (inter_x>0))
+  
+  return(raster::stack(raster::mask(x, intersectMask(x))))
 }
 
 
@@ -202,6 +227,9 @@ intersectMask <- function(x){
 #' @param biomodModelOut A \link[biomod2]{BIOMOD.models.out-class} class object.
 #' 
 #' @return A named logical vector specifying which models were run.
+#' 
+#' @importFrom biomod2 get_built_models
+#' 
 #' @export
 #' 
 
@@ -213,37 +241,136 @@ checkModAlgoRun <- function(biomodModelOut){
   wereBuilt <- vector(mode = "logical", length = length(allModAlgos))
   
   for(i in 1:length(allModAlgos)){
-    wereBuilt[i] <- ifelse(sum(grepl("GLM",builtMods)) > 0,TRUE,FALSE)
+    wereBuilt[i] <- ifelse(sum(grepl(allModAlgos[i],builtMods)) > 0,TRUE,FALSE)
   }
   names(wereBuilt) <- allModAlgos
   return(wereBuilt)
 }
 
 
+#' Adjust the percentage of the training sample
+#' 
+#' An ancillary function used to modify the training sample percentage so that the 
+#' total amount of training records ((presences + pseudo absences) times the train 
+#' fraction) is below maxTrain. The function is used in cases where model fitting is 
+#' very slow due to the amount of available records.
+#' 
+
+adjustPercTrain <- function(biomodData, percTrain, maxTrain=1000){
+  
+  # Total number of records
+  nTotal <- sum(biomodData@PA[,1])
+  
+  nTrainTotal <- round(nTotal * (percTrain/100))
+  if(nTrainTotal > maxTrain){
+    percTrainAdj <- round((maxTrain / nTotal)*100)
+    return(percTrainAdj)
+  }else{
+    return(percTrain)
+  }
+} 
+
+
+powerFunPAnumberCalc <- function(nPresences,a=45, b=-0.55){
+  return(round(nPresences * (a * nPresences^b)))
+}
+
+
+#'
+#'
+#' @importFrom dplyr group_by
+#' @importFrom dplyr select
+#' @importFrom dplyr summarize
+#' @importFrom dplyr filter
+#' @importFrom tidyr gather
+#' @importFrom biomod2 get_evaluations
+#' @importFrom stats median
+
+twoStepBestModelSelection <- function(biomodModelOut, 
+                                      evalMetric = "TSS", 
+                                      nrBestAlgos = 5, 
+                                      bestAlgoFun = stats::median, 
+                                      topFraction = 0.25){
+  
+  # Get model evaluations
+  modEvalArray <- biomod2::get_evaluations(biomodModelOut)
+  
+  modEvalDF <- as.data.frame(modEvalArray[evalMetric, "Testing.data",,,])
+  ncols <- ncol(modEvalDF)
+  
+  modAlgoRank <- sort(apply(modEvalDF, MARGIN = 1, FUN = bestAlgoFun), decreasing = TRUE)
+  bestAlgos <- names(modAlgoRank)[1:nrBestAlgos]
+  
+  modEvalDF2 <- tidyr::gather(modEvalDF, key = "modString", value = "modScore")
+  
+  # Create the full evaluation data frame
+  #
+  modEvalDF <- modEvalDF %>% 
+    rownames %>% 
+    rep(ncols) %>% # Generate a char vector with model names
+    paste(modEvalDF2$modString %>% 
+            strsplit("\\.") %>% 
+            lapply(FUN = function(x) return(x[c(2,1)])) %>% # Invert the order to PA set and run
+            lapply(FUN = function(x) paste(x, collapse="_",sep="")) %>% 
+            unlist(use.names = FALSE), sep="_") %>% 
+    strsplit("_") %>% 
+    unlist %>% 
+    matrix(ncol = 3, byrow = TRUE) %>%
+    data.frame(modEvalScore = modEvalDF2$modScore, stringsAsFactors = FALSE) %>% 
+    `colnames<-`(c("modAlgo","PAset","run","modEvalScore"))
+  
+  # Calculate the top fraction quantile values for the best model algorithms
+  #
+  topQtValues <- modEvalDF %>% 
+    dplyr::filter(modAlgo %in% bestAlgos) %>% 
+    dplyr::group_by(modAlgo) %>% 
+    dplyr::summarize(qts = stats::quantile(modEvalScore, probs = 1 - topFraction))
+  
+  i <- 0
+  selMods <- c()
+  
+  for(modAlgo_i in as.character(topQtValues$modAlgo)){
+    i <- i + 1
+    selMods <- c(selMods,
+                 modEvalDF %>% 
+                   dplyr::filter(modAlgo == modAlgo_i, modEvalScore >= topQtValues$qts[i]) %>% 
+                   dplyr::select(1,2,3) %>% 
+                   apply(MARGIN = 1, FUN = function(x) paste(x, collapse="_",sep="")))
+  }
+  return(selMods)
+}
+
 ## PLOTS AND GRAPHICS ----------------------------------------------------------------------
 
 #' Make response plots for multiple variables 
 #' 
-#' A flexiblw function used to produce response plots using \code{ggplot2} package. 
+#' A flexible function used to produce response plots using \code{ggplot2} package. 
 #' 
 #' @param biomodModelOut A \link[biomod2]{BIOMOD.models.out-class} class object
 #' @param Data A \code{data.frame} or \code{RasterStack} containing the data used to make 
-#' the response plots. They must have the same names as the ones used to calibrate the model.
-#' @param modelsToUse
-#' @param showVars
-#' @param fixedVarMetric
-#' @param addMarginalPlot
-#' @param varNames
-#' @param marginPlotType
-#' @param plotStdErr
-#' @param plot
-#' @param save
-#' @param filePrefix
-#' @param fileSuffix
-#' @param outFolder
-#' @param width
-#' @param height
-#' @param dpi
+#' the response plots. The data must have the same names as the ones used to fit the model.
+#' @param modelsToUse A character vector specifying which models to use. The 
+#' \link[biomod2]{BIOMOD_LoadModels} function must be used for this purpose allowing to load 
+#' the models into the Global Environment so these can be used by the \link[biomod2]{response.plot2} 
+#' function
+#' @param showVars A character vector specifying which variables should be used. The option "all" 
+#' (default) uses all the variables contained in \code{Data}
+#' @param fixedVarMetric Either 'mean' (default), 'median', 'min' or 'max' specifying the 
+#' statistic used to fix as constant the remaining variables when the predicted response 
+#' is estimated for one of the variables
+#' @param addMarginalPlot Logical determining if a marginal plot, showing the distribution of 
+#' the target variable, is plotted (default: FALSE)
+#' @param marginPlotType Type of marginal plot to add. Valid options are: "histogram" (default), 
+#' "boxplot", "density", "violin" or "densigram"
+#' @param varNames Character vector with the names for each variable to be plotted
+#' @param plotStdErr Plot with std-error bands or simply plot all response lines, one 
+#' for each model selected (default: FALSE)
+#' @param plot Plot to device?
+#' @param save Save plot? (by default the png image format is used)
+#' @param filePrefix Filename prefix (default: "ResponsePlot_")
+#' @param fileSuffix Filename suffix (default: "")
+#' @param outFolder Output folder where the plot image will be placed (default: getwd())
+#' @param ... Other parameters passed to \link[ggplot2]{ggsave}
 #' 
 #' @return A list object containing two components:     
 #' \itemize{
@@ -259,22 +386,43 @@ checkModAlgoRun <- function(biomodModelOut){
 #' used for building the model. It therefore permits a direct comparison of predicted responses 
 #' from the different statistical approaches on the same data.
 #' 
+#' To use this function, first the selected models have to loaded to the Global Environment 
+#' using the \link[biomod2]{BIOMOD_LoadModels} function. 
+#' 
 #' @seealso 
 #' \link[biomod2]{response.plot2}   
 #' \link[biomod2]{BIOMOD_LoadModels}
+#' 
+#' @importFrom raster values
+#' @importFrom biomod2 response.plot2
+#' @importFrom ggplot2 ggplot
+#' @importFrom ggplot2 geom_point
+#' @importFrom ggplot2 geom_line
+#' @importFrom ggplot2 geom_ribbon
+#' @importFrom ggplot2 xlab
+#' @importFrom ggplot2 ylab
+#' @importFrom ggplot2 theme_bw
+#' @importFrom ggplot2 ggsave
+#' @importFrom ggplot2 aes_string
+#' @importFrom ggExtra ggMarginal
+#' @importFrom stats sd
+#' @importFrom stats na.omit
+#' @importFrom utils setTxtProgressBar
+#' @importFrom utils txtProgressBar
+#' 
 #' @export
 #' 
 
 responsePlots <- function(biomodModelOut, Data, modelsToUse, showVars = "all", 
-                          fixedVarMetric = 'mean', addMarginalPlot = TRUE,
-                          varNames = NULL, marginPlotType = "histogram", plotStdErr = FALSE,
-                          plot = FALSE, save = TRUE, filePrefix = "ResponsePlot_", 
-                          fileSuffix = "", outFolder = getwd(), width = NA, 
-                          height = NA, dpi = 300){
+                          fixedVarMetric = 'mean', addMarginalPlot = TRUE, 
+                          marginPlotType = "histogram", varNames = NULL,  
+                          plotStdErr = FALSE, plot = FALSE, save = TRUE, 
+                          filePrefix = "ResponsePlot_", 
+                          fileSuffix = "", outFolder = getwd(), ...){
   
   if(inherits(Data,"RasterStack")){
     cat("Loading data from RasterStack....")
-    Data <- as.data.frame(na.omit(values(Data)))
+    Data <- as.data.frame(stats::na.omit(raster::values(Data)))
     cat("done.\n\n")
   }
   
@@ -291,12 +439,12 @@ responsePlots <- function(biomodModelOut, Data, modelsToUse, showVars = "all",
   respCurvesList[["PLOTS"]] <- list()
   
   k <- 0
-  pb <- txtProgressBar(1,length(showVars),style=3)
+  pb <- utils::txtProgressBar(1,length(showVars),style=3)
   
   for(modVar in showVars){
     
     k<-k+1
-    respCurves <- as.data.frame(response.plot2(models = modelsToUse,
+    respCurves <- as.data.frame(biomod2::response.plot2(models = modelsToUse,
                                                Data = Data,
                                                show.variables = modVar,
                                                do.bivariate = FALSE,
@@ -307,9 +455,9 @@ responsePlots <- function(biomodModelOut, Data, modelsToUse, showVars = "all",
     ## Make one plot per variable ------------------------------------------------- ##
     ##
     ##
-    tmpDF <- data.frame(x = respCurves[,1], 
+    tmpDF <- data.frame(targetVar = respCurves[,1], 
                         avgResp = apply(respCurves[,-1], 1, mean),
-                        stdErr = apply(respCurves[,-1], 1, function(x) sd(x)/sqrt(length(x))))
+                        stdErr = apply(respCurves[,-1], 1, function(x) stats::sd(x)/sqrt(length(x))))
     
     
     cn <- colnames(respCurves)
@@ -318,29 +466,29 @@ responsePlots <- function(biomodModelOut, Data, modelsToUse, showVars = "all",
     if(!plotStdErr){
       
       # Start the ggplot object
-      g <- ggplot(respCurves, aes_string(x = cn[1]))
+      g <- ggplot2::ggplot(respCurves, ggplot2::aes_string(x = cn[1]))
       
       # Add one response line per model to the ggplot object
       for(i in 2:(ncol(respCurves))){
-        g <- g + geom_line(aes_string(y=cn[i]), alpha=0.2)
+        g <- g + ggplot2::geom_line(ggplot2::aes_string(y=cn[i]), alpha=0.2)
       }
       
       # Add the average line and change default theme settings
       g <- g + 
-        geom_line(mapping = aes(y = avgResp, x = x),data = tmpDF, size = 1.5) + 
-        xlab(ifelse(is.null(varNames),modVar,varNames[k])) + 
-        ylab("Response") + 
-        theme_bw()
+            ggplot2::geom_line(mapping = aes(y = avgResp, x = targetVar),data = tmpDF, size = 1.5) + 
+            ggplot2::xlab(ifelse(is.null(varNames),modVar,varNames[k])) + 
+            ggplot2::ylab("Response") + 
+            ggplot2::theme_bw()
       
       # Create plot with average and std-error curves/bands  
     }else{
-      g <- ggplot(tmpDF,aes(x = x)) + 
-        geom_ribbon(aes(ymin = avgResp - 2*stdErr, ymax = avgResp + 2*stdErr), 
-                    alpha = 0.3, fill = "dark blue") + 
-        geom_line(aes(y = avgResp)) + 
-        xlab(modVar) + 
-        ylab("Response") + 
-        theme_bw()
+      g <- ggplot2::ggplot(tmpDF,aes(x = targetVar)) + 
+            ggplot2::geom_ribbon(aes(ymin = avgResp - 2*stdErr, ymax = avgResp + 2*stdErr), 
+                        alpha = 0.3, fill = "dark blue") + 
+            ggplot2::geom_line(aes(y = avgResp)) + 
+            ggplot2::xlab(modVar) + 
+            ggplot2::ylab("Response") + 
+            ggplot2::theme_bw()
     }
     
     # Adds a marginal plot to show the distribution of the target variable
@@ -348,9 +496,9 @@ responsePlots <- function(biomodModelOut, Data, modelsToUse, showVars = "all",
     if(addMarginalPlot){
       
       minVal <- min(tmpDF$avgResp)
-      g <- g + geom_point(mapping = aes_string(y = minVal, x = modVar), 
+      g <- g + ggplot2::geom_point(mapping = ggplot2::aes_string(y = minVal, x = modVar), 
                           data = Data, alpha = 0)
-      g <- ggMarginal(g, margins = "x", type = marginPlotType)
+      g <- ggExtra::ggMarginal(g, margins = "x", type = marginPlotType)
     }
     
     # Plot response curve?
@@ -360,15 +508,15 @@ responsePlots <- function(biomodModelOut, Data, modelsToUse, showVars = "all",
     
     # Save image per variable?
     if(save){
-      suppressMessages(ggsave(filename = paste(outFolder,"/",filePrefix,modVar,fileSuffix,".png",sep=""),
-                              plot = g, width = width, height = height, dpi = dpi))
+      suppressMessages(ggplot2::ggsave(filename = paste(outFolder,"/",filePrefix,modVar,fileSuffix,".png",sep=""),
+                              plot = g, ...))
     }
     
     # Save data to an object
     respCurvesList[["DATA"]][[modVar]] <- respCurves
     respCurvesList[["PLOTS"]][[modVar]] <- g
     
-    setTxtProgressBar(pb, k)
+    utils::setTxtProgressBar(pb, k)
   }
   invisible(respCurvesList)
 }
@@ -381,7 +529,7 @@ responsePlots <- function(biomodModelOut, Data, modelsToUse, showVars = "all",
 #' 
 #' @param biomodModelsOut A \link[biomod2]{BIOMOD.models.out-class} class object.
 #' @param by Options are "all" (default) for plotting the average across all PA sets, algorithms 
-#' and evaluation rounds or "algo" to plot the averag importance scores by modelling 
+#' and evaluation rounds or "algo" to plot the average importance scores by modelling 
 #' algorithm and across PA sets and evaluation rounds
 #' @param sortVars 
 #' @param filterAlgos
@@ -395,6 +543,8 @@ responsePlots <- function(biomodModelOut, Data, modelsToUse, showVars = "all",
 #' @importFrom biomod2 get_variables_importance
 #' @importFrom dplyr arrange 
 #' @importFrom dplyr mutate
+#' @importFrom dplyr filter
+#' @importFrom dplyr desc
 #' @importFrom magrittr %>%
 #' @importFrom tidyr gather
 #' @importFrom ggplot2 ggplot
@@ -407,6 +557,9 @@ responsePlots <- function(biomodModelOut, Data, modelsToUse, showVars = "all",
 #' @importFrom ggplot2 element_text
 #' @importFrom ggplot2 aes
 #' @importFrom ggplot2 ggsave
+#' @importFrom ggplot2 facet_wrap
+#' @importFrom ggplot2 facet_grid
+#' @importFrom stats sd
 #' 
 #' @export
 #' 
@@ -424,26 +577,25 @@ varImportancePlot <- function(biomodModelsOut, by="all", sortVars=TRUE,
     
     # Calculate average and std-error stats
     varImportanceByVariableAVG <- apply(varImportance, 1, mean)
-    varImportanceByVariableSTE <- apply(varImportance, 1, function(x) sd(x)/sqrt(length(x)))
+    varImportanceByVariableSTE <- apply(varImportance, 1, function(x) stats::sd(x)/sqrt(length(x)))
     
     vimpDF <- data.frame(cnames = names(varImportanceByVariableAVG),
                          varImpAVG = varImportanceByVariableAVG, 
                          varImpSTE = varImportanceByVariableSTE) %>% 
-      arrange(desc(varImpAVG))
+      dplyr::arrange(dplyr::desc(varImpAVG))
     
     if(sortVars){
       vimpDF[,"cnames"] <- factor(vimpDF$cnames, levels = vimpDF$cnames, 
                                   labels = vimpDF$cnames) 
     }
     
-    g <- ggplot(vimpDF,aes(x= cnames, y = varImpAVG)) + 
-      geom_bar(stat="identity") + 
-      geom_errorbar(aes(ymin=varImpAVG - 2*varImpSTE, ymax=varImpAVG + 2*varImpSTE), 
-                    width=0.35) + 
-      xlab("Variables") + 
-      ylab("Variable importance score") + 
-      theme_bw() +
-      theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    g <- ggplot2::ggplot(vimpDF,ggplot2::aes(x= cnames, y = varImpAVG)) + 
+          ggplot2::geom_bar(stat="identity") + 
+          ggplot2::geom_errorbar(aes(ymin=varImpAVG - 2*varImpSTE, ymax=varImpAVG + 2*varImpSTE), width=0.35) + 
+          ggplot2::xlab("Variables") + 
+          ggplot2::ylab("Variable importance score") + 
+          ggplot2::theme_bw() +
+          ggplot2::theme(axis.text.x = element_text(angle = 45, hjust = 1))
   }
   # Make a panel wrap or grid by model algorithm
   else if(by=="algo"){
@@ -452,39 +604,40 @@ varImportancePlot <- function(biomodModelsOut, by="all", sortVars=TRUE,
     # The c(1,2) means average for each variable (row) and model algo (col)
     varImportanceByVariableAVG <- apply(varImportance, c(1,2), mean) %>% 
       as.data.frame %>% 
-      mutate(varNames = as.factor(rownames(.))) %>% 
-      gather("modAlgo","varImpAVG",setdiff(colnames(.),"varNames"))
+      dplyr::mutate(varNames = as.factor(rownames(.))) %>% 
+      tidyr::gather("modAlgo","varImpAVG",setdiff(colnames(.),"varNames"))
     
     varImportanceByVariableSTE <- apply(varImportance, c(1,2), 
-                                        function(x) sd(x)/sqrt(length(x))) %>% 
+                                        function(x) stats::sd(x)/sqrt(length(x))) %>% 
       as.data.frame %>% 
-      mutate(varNames = as.factor(rownames(.))) %>% 
-      gather("modAlgo","varImpSTE",setdiff(colnames(.),"varNames"))
+      dplyr::mutate(varNames = as.factor(rownames(.))) %>% 
+      tidyr::gather("modAlgo","varImpSTE",setdiff(colnames(.),"varNames"))
     
     # Join data with average values and std-errors
     vimpDF <- cbind(varImportanceByVariableAVG, 
-                    varImpSTE=varImportanceByVariableSTE[,"varImpSTE"])
+                    varImpSTE = varImportanceByVariableSTE[,"varImpSTE"])
     
     # Filter rows for specific model algos only
     if(!is.null(filterAlgos)){
-      vimpDF <- vimpDF %>% filter(modAlgo %in% filterAlgos)
+      vimpDF <- vimpDF %>% dplyr::filter(modAlgo %in% filterAlgos)
     }
     
     # Make ggplot object with var importance scores
-    g <- ggplot(vimpDF,aes(x= varNames, y = varImpAVG)) + 
-      geom_bar(stat="identity") + 
-      geom_errorbar(aes(ymin=varImpAVG - 2*varImpSTE, ymax=varImpAVG + 2*varImpSTE), 
-                    width=0.35) + 
-      xlab("Variables") + 
-      ylab("Variable importance score") + 
-      theme_bw() +
-      theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=0.5)) 
+    g <- ggplot2::ggplot(vimpDF,ggplot2::aes(x= varNames, y = varImpAVG)) + 
+          ggplot2::geom_bar(stat="identity") + 
+          ggplot2::geom_errorbar(aes(ymin = varImpAVG - 2*varImpSTE, 
+                                     ymax = varImpAVG + 2*varImpSTE), 
+                                     width = 0.35) + 
+          ggplot2::xlab("Variables") + 
+          ggplot2::ylab("Variable importance score") + 
+          ggplot2::theme_bw() +
+          ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, hjust = 1, vjust=0.5)) 
       
       # Add a panel grid or wrap
       if(plotType=="facet_wrap"){
-        g <- g + facet_wrap(modAlgo~.)
+        g <- g + ggplot2::facet_wrap(modAlgo~.)
       }else if(plotType=="facet_grid"){
-        g <- g + facet_grid(modAlgo~.)
+        g <- g + ggplot2::facet_grid(modAlgo~.)
       }else{
         stop("Invalid option in plotType!")
       }
@@ -497,7 +650,7 @@ varImportancePlot <- function(biomodModelsOut, by="all", sortVars=TRUE,
   
   # Save plot to image file?
   if(save){
-    suppressMessages(ggsave(filename = paste(outputFolder,"/",filename,sep=""), 
+    suppressMessages(ggplot2::ggsave(filename = paste(outputFolder,"/",filename,sep=""), 
                             plot = g, ...))
   }
   
@@ -533,6 +686,7 @@ varImportancePlot <- function(biomodModelsOut, by="all", sortVars=TRUE,
 #' @importFrom biomod2 get_evaluations
 #' @importFrom dplyr select
 #' @importFrom dplyr arrange
+#' @importFrom dplyr desc
 #' @importFrom ggplot2 ggplot
 #' @importFrom ggplot2 geom_bar
 #' @importFrom ggplot2 geom_errorbar
@@ -543,6 +697,8 @@ varImportancePlot <- function(biomodModelsOut, by="all", sortVars=TRUE,
 #' @importFrom ggplot2 element_text
 #' @importFrom ggplot2 aes
 #' @importFrom ggplot2 ggsave
+#' @importFrom tidyselect starts_with
+#' @importFrom stats sd
 #' 
 #' @export
 #' 
@@ -556,35 +712,35 @@ evalMetricPlot <- function(biomodModelOut, evalMetric = "TSS", sort = TRUE,
   evalDF <- as.data.frame(myBiomodModelEval[evalMetric,"Testing.data",,,])
   
   if(removeFull){
-    evalDF <- select(evalDF, -starts_with("FULL"))
+    evalDF <- dplyr::select(evalDF, -tidyselect::starts_with("FULL"))
   }
   
   evalDFsummary <- data.frame(
     algoName = rownames(evalDF),
     evalScoreAVG = apply(evalDF, 1, mean),
-    evalScoreSTE = apply(evalDF, 1, function(x) sd(x)/sqrt(length(x)))) %>% 
-    arrange(desc(evalScoreAVG))
+    evalScoreSTE = apply(evalDF, 1, function(x) stats::sd(x)/sqrt(length(x)))) %>% 
+    dplyr::arrange(dplyr::desc(evalScoreAVG))
   
   if(sort){
     evalDFsummary[,"algoName"] <- factor(evalDFsummary$algoName, evalDFsummary$algoName,
                                          labels = evalDFsummary$algoName)
   }
   
-  g <- ggplot(evalDFsummary, aes(y = evalScoreAVG, x = algoName)) + 
-    geom_bar(stat="identity") + 
-    geom_errorbar(aes(ymin = evalScoreAVG - 2*evalScoreSTE, 
-                      ymax = evalScoreAVG + 2*evalScoreSTE), width=0.35) +
-    theme_bw() + 
-    theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust=1)) + 
-    ylab(paste(evalMetric,"score")) + 
-    xlab("Variables")
+  g <- ggplot2::ggplot(evalDFsummary, ggplot2::aes(y = evalScoreAVG, x = algoName)) + 
+        ggplot2::geom_bar(stat="identity") + 
+        ggplot2::geom_errorbar(ggplot2::aes(ymin = evalScoreAVG - 2*evalScoreSTE, 
+                                   ymax = evalScoreAVG + 2*evalScoreSTE), width=0.35) +
+        ggplot2::theme_bw() + 
+        ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1, vjust=1)) + 
+        ggplot2::ylab(paste(evalMetric,"score")) + 
+        ggplot2::xlab("Variables")
   
   if(plot){
     plot(g)
   }
   
   if(save){
-    suppressMessages(ggsave(filename = paste(outputFolder,"/",filename,sep=""), 
+    suppressMessages(ggplot2::ggsave(filename = paste(outputFolder,"/",filename,sep=""), 
                             plot = g, ...))
   }
   
