@@ -1,4 +1,53 @@
 
+#' Get distinct raster cell centroids from input presence records
+#' 
+#' This function is used to remove duplicates and NA's in the input points and 
+#' return the coordinates for each unique cell centroid
+#' 
+#' @param rasterObj A raster stack or layer object
+#' @param pointObj A set of points as a SpatialPoints* object
+#' @param spatial Return as a spatial object? (default: TRUE) 
+#' 
+#' @return Either a \code{data.frame} with unique cell centroid coordinates for the input 
+#' point dataset or a \code{SpatialPoints} object
+#' 
+#' @importFrom raster extract
+#' @importFrom raster xyFromCell
+#' @importFrom raster crs
+#' @importFrom dplyr mutate
+#' @importFrom dplyr distinct
+#' @importFrom dplyr select
+#' @importFrom sp SpatialPoints
+#' 
+#' @export
+#' 
+
+getUniqueRasterXYCoords <- function(rasterObj, pointObj, spatial=TRUE){
+  
+  if(!inherits(rasterObj,c("RasterLayer","RasterStack"))){
+    stop("rasterObj must be a RasterLayer or a RasterStack object!")
+  }
+  
+  # Extract data to points and remove NA's
+  xyData <- raster::extract(rasterObj, pointObj, cellnumbers=TRUE) %>% 
+    na.omit
+  
+  # Get unique xy coordinates from raster cell centroids
+  xyCoordsDF <- raster::xyFromCell(rasterObj, xyData[,"cells"]) %>% 
+    as.data.frame %>% 
+    dplyr::mutate(ID = paste(x, y, sep = "_")) %>% 
+    dplyr::distinct(ID, .keep_all = TRUE) %>% 
+    dplyr::select(x, y)
+  
+  if(!spatial){
+    return(xyCoordsDF)  
+  }else{
+    spObj <- sp::SpatialPoints(xyCoordsDF, proj4string = raster::crs(pointObj))
+    return(spObj)
+  }
+}
+
+
 
 #' Convert raster files from grd format to GeoTIFF
 #' 
@@ -96,7 +145,8 @@ abbrevNames <- function(x) paste(stringr::str_to_title(unlist(strsplit(gsub("\\.
 #' @param rstStackList A list object with one \code{RasterStack} object by scenario. 
 #' The list may be named and these names will be used as the input of \code{proj.name} 
 #' parameter from \link[biomod2]{BIOMOD_Projection} function.
-#'
+#' @param convert2GeoTIFF Convert to GeoTIFF file format?
+#' 
 #' @return NULL
 #' 
 #' @seealso 
@@ -161,7 +211,7 @@ projectMultipleScenarios <- function(myBiomodModelOut, myBiomodProj, myBiomodEM,
 #' calculate the threshold used in \link[biomod2]{BIOMOD_EnsembleModeling} function 
 #' to set the parameter \code{eval.metric.quality.threshold}.
 #' 
-#' @param myBiomodModelOut A \link[biomod2]{BIOMOD.models.out-class} class object.
+#' @param biomodModelOut A \link[biomod2]{BIOMOD.models.out-class} class object.
 #' @param qt The target quantile between 0 and 1.
 #' @param evalMetric A character string defining the evaluation metric. 
 #' Available options are: 'KAPPA', 'TSS', 'ROC', 'FAR', 'SR', 'ACCURACY', 'BIAS', 
@@ -251,9 +301,18 @@ checkModAlgoRun <- function(biomodModelOut){
 #' Adjust the percentage of the training sample
 #' 
 #' An ancillary function used to modify the training sample percentage so that the 
-#' total amount of training records ((presences + pseudo absences) times the train 
+#' total amount of training records (presences + pseudo absences) times the train 
 #' fraction) is below maxTrain. The function is used in cases where model fitting is 
 #' very slow due to the amount of available records.
+#' 
+#' @param biomodData A \link[biomod2]{BIOMOD.formated.data-class} object
+#' @param percTrain The percentage of training data (0-100)
+#' @param maxTrain The maximum number of training points (default: 1000)
+#' 
+#' @return An adjusted training set percentage to guarantee that the total 
+#' number of training points does not exceed the maxTrain value.
+#' 
+#' @export
 #' 
 
 adjustPercTrain <- function(biomodData, percTrain, maxTrain=1000){
@@ -270,13 +329,46 @@ adjustPercTrain <- function(biomodData, percTrain, maxTrain=1000){
   }
 } 
 
+#' Calculate the number of pseudo-absences using a power function
+#' 
+#' This function is intended to calculate the number of pseudo-absences based on a 
+#' power function thus allowing to have a large number of PA's for small sample 
+#' sizes and, it approximates the number presences for very large sample sizes. 
+#' The function is defined  as follows: \eqn{n_{PA} = n_{P} \times a \times n_{P}^{-b}}, 
+#' with \eqn{n_{PA}} equal to the number of pseudo-absences and \eqn{n_{P}} to the number of 
+#' presences. The parameters \eqn{a} and \eqn{b} allow to adjust the amount of PA's.
+#' 
+#' @param nPresences Number of presence records
+#' @param a Multiplication parameter (default: 45)
+#' @param b Exponential parameter (default: -0.55)
+#'
+#' @return An integer defining the number of pseudo-absences
+#'
+#' @export
+#'
 
-powerFunPAnumberCalc <- function(nPresences,a=45, b=-0.55){
+powerFunPAnumberCalc <- function(nPresences, a = 45, b = -0.55){
   return(round(nPresences * (a * nPresences^b)))
 }
 
 
+#' Performs a two-stage best model selection
+#' 
+#' The function is used to make a two-stage selection based, first selecting the best 
+#' modelling algorithms and then selecting the top best-performing fraction of models 
+#' within those techniques. 
 #'
+#' @param biomodModelOut A \link[biomod2]{BIOMOD.models.out-class} class object
+#' @param evalMetric The evaluation metric to use (available options are: 
+#' 'KAPPA', TSS', 'ROC', 'FAR', 'SR', 'ACCURACY', 'BIAS', 'POD', 'CSI' and 'ETS')
+#' @param nrBestAlgos Integer number defining how many top-performing 
+#' algorithms (default: 5)
+#' @param bestAlgoFun Function used to aggregate model scores and rank each 
+#' algorithm (default: median)
+#' @param topFraction Fraction of best-performing models for each selected modelling 
+#' technique 
+#'
+#' @return A character vector with selected models
 #'
 #' @importFrom dplyr group_by
 #' @importFrom dplyr select
@@ -285,12 +377,19 @@ powerFunPAnumberCalc <- function(nPresences,a=45, b=-0.55){
 #' @importFrom tidyr gather
 #' @importFrom biomod2 get_evaluations
 #' @importFrom stats median
+#' 
+#' @export
+#' 
 
 twoStepBestModelSelection <- function(biomodModelOut, 
                                       evalMetric = "TSS", 
                                       nrBestAlgos = 5, 
                                       bestAlgoFun = stats::median, 
                                       topFraction = 0.25){
+  
+  ## STEP #1 - select the top-performing techniques ------------------------
+  ##
+  ##
   
   # Get model evaluations
   modEvalArray <- biomod2::get_evaluations(biomodModelOut)
@@ -300,6 +399,10 @@ twoStepBestModelSelection <- function(biomodModelOut,
   
   modAlgoRank <- sort(apply(modEvalDF, MARGIN = 1, FUN = bestAlgoFun), decreasing = TRUE)
   bestAlgos <- names(modAlgoRank)[1:nrBestAlgos]
+  
+  
+  ## STEP #2 - select top-performing models --------------------------------------- 
+  ##
   
   modEvalDF2 <- tidyr::gather(modEvalDF, key = "modString", value = "modScore")
   
@@ -317,9 +420,18 @@ twoStepBestModelSelection <- function(biomodModelOut,
     unlist %>% 
     matrix(ncol = 3, byrow = TRUE) %>%
     data.frame(modEvalScore = modEvalDF2$modScore, stringsAsFactors = FALSE) %>% 
-    `colnames<-`(c("modAlgo","PAset","run","modEvalScore"))
+    `colnames<-`(c("modAlgo","PAset","evalRun","modEvalScore"))
   
-  # Calculate the top fraction quantile values for the best model algorithms
+  # Check if model evaluation score array only has one PA set
+  if(dim(modEvalArray)[5]==1){
+    modEvalDF[,"PAset"] <- "PA1"
+  }
+  if(all(is.na(modEvalDF[,"PAset"])) | all(modEvalDF[,"PAset"]=="NA")){
+    modEvalDF[,"PAset"] <- "PA1"
+  }
+  
+  # Calculate the top fraction quantile values for the best modelling algorithms
+  # These will be used as cutoff values to select the best models
   #
   topQtValues <- modEvalDF %>% 
     dplyr::filter(modAlgo %in% bestAlgos) %>% 
@@ -331,12 +443,17 @@ twoStepBestModelSelection <- function(biomodModelOut,
   
   for(modAlgo_i in as.character(topQtValues$modAlgo)){
     i <- i + 1
+    # Make and append model character strings in biomod2 style
     selMods <- c(selMods,
                  modEvalDF %>% 
                    dplyr::filter(modAlgo == modAlgo_i, modEvalScore >= topQtValues$qts[i]) %>% 
-                   dplyr::select(1,2,3) %>% 
+                   dplyr::select(2,3,1) %>% 
                    apply(MARGIN = 1, FUN = function(x) paste(x, collapse="_",sep="")))
   }
+  
+  # Append the target species name to the model id strings
+  selMods <- paste(biomodModelOut@sp.name,selMods,sep="_")
+  
   return(selMods)
 }
 
@@ -531,14 +648,24 @@ responsePlots <- function(biomodModelOut, Data, modelsToUse, showVars = "all",
 #' @param by Options are "all" (default) for plotting the average across all PA sets, algorithms 
 #' and evaluation rounds or "algo" to plot the average importance scores by modelling 
 #' algorithm and across PA sets and evaluation rounds
-#' @param sortVars 
-#' @param filterAlgos
-#' @param plotType
-#' @param save
-#' @param plot
-#' @param outputFolder
-#' @param filename
-#' @param ... 
+#' @param sortVars Sort variables (in decreasing order) by importance score? (default: TRUE)
+#' @param filterAlgos Character vector used to select specific algorithms. OPtions are: 
+#' 'GLM', 'GBM', 'GAM', 'CTA', 'ANN', 'SRE', 'FDA', 'MARS', 'RF', 'MAXENT.Phillips' and 
+#' "MAXENT.Tsuruoka" (default: NULL)
+#' @param plotType Plot type. Available options are "facet_wrap" or "facet_grid"
+#' @param save Save plot? (default: FALSE)
+#' @param plot Plot to device? (default: TRUE)
+#' @param outputFolder Output folder used to save the plot image (uses the 
+#' \link[ggplot2]{ggsave}) function
+#' @param filename Name of the image file to save
+#' @param ... Other parameters passed to \link[ggplot2]{ggsave}) function
+#' 
+#' @return A list object containing:
+#' \itemize{
+#'    \item vimpAll - All importance scores array object
+#'    \item vimpSummary - Variable importance summary
+#'    \item gplot - The ggplot object
+#' }
 #' 
 #' @importFrom biomod2 get_variables_importance
 #' @importFrom dplyr arrange 
@@ -564,7 +691,7 @@ responsePlots <- function(biomodModelOut, Data, modelsToUse, showVars = "all",
 #' @export
 #' 
 
-varImportancePlot <- function(biomodModelsOut, by="all", sortVars=TRUE, 
+varImportancePlot <- function(biomodModelsOut, by = "all", sortVars = TRUE, 
                               filterAlgos = NULL, plotType="facet_wrap",
                               save=FALSE, plot=TRUE, outputFolder=getwd(), 
                               filename="VarImportancePlot.png",...){ 

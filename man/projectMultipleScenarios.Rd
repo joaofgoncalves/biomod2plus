@@ -22,6 +22,8 @@ Must equal the length of \code{rstStackList}.}
 \item{rstStackList}{A list object with one \code{RasterStack} object by scenario. 
 The list may be named and these names will be used as the input of \code{proj.name} 
 parameter from \link[biomod2]{BIOMOD_Projection} function.}
+
+\item{convert2GeoTIFF}{Convert to GeoTIFF file format?}
 }
 \description{
 A wrapper function used to project and ensemble multiple scenarios contained in a 

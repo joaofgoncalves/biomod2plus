@@ -16,9 +16,32 @@ varImportancePlot(biomodModelsOut, by = "all", sortVars = TRUE,
 and evaluation rounds or "algo" to plot the average importance scores by modelling 
 algorithm and across PA sets and evaluation rounds}
 
-\item{sortVars}{}
+\item{sortVars}{Sort variables (in decreasing order) by importance score? (default: TRUE)}
 
-\item{...}{}
+\item{filterAlgos}{Character vector used to select specific algorithms. OPtions are: 
+'GLM', 'GBM', 'GAM', 'CTA', 'ANN', 'SRE', 'FDA', 'MARS', 'RF', 'MAXENT.Phillips' and 
+"MAXENT.Tsuruoka" (default: NULL)}
+
+\item{plotType}{Plot type. Available options are "facet_wrap" or "facet_grid"}
+
+\item{save}{Save plot? (default: FALSE)}
+
+\item{plot}{Plot to device? (default: TRUE)}
+
+\item{outputFolder}{Output folder used to save the plot image (uses the 
+\link[ggplot2]{ggsave}) function}
+
+\item{filename}{Name of the image file to save}
+
+\item{...}{Other parameters passed to \link[ggplot2]{ggsave}) function}
+}
+\value{
+A list object containing:
+\itemize{
+   \item vimpAll - All importance scores array object
+   \item vimpSummary - Variable importance summary
+   \item gplot - The ggplot object
+}
 }
 \description{
 Plot variable average importance scores across different PA sets, algorithms and 
