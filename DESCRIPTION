@@ -6,7 +6,7 @@ Date: 2018-10-11
 Author: João Gonçalves <joaofgo@gmail.com>
 Maintainer: João Gonçalves <joaofgo@gmail.com> 
 Description: Complements biomod2 package with a couple of useful functions used to summarize and visualize output results and data.
-Depends: R (>= 3.4.0)
+Depends: R (>= 3.3.0)
 Imports: raster, dplyr, ggplot2, ggExtra, biomod2, tools, magrittr, tidyr, stringr, tidyselect, sp
 Suggests: stats, utils
 License: GPL-3
