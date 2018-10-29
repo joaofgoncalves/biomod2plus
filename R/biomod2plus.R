@@ -385,7 +385,8 @@ twoStepBestModelSelection <- function(biomodModelOut,
                                       evalMetric = "TSS", 
                                       nrBestAlgos = 5, 
                                       bestAlgoFun = stats::median, 
-                                      topFraction = 0.25){
+                                      topFraction = 0.25,
+                                      na.rm = TRUE){
   
   ## STEP #1 - select the top-performing techniques ------------------------
   ##
@@ -397,7 +398,7 @@ twoStepBestModelSelection <- function(biomodModelOut,
   modEvalDF <- as.data.frame(modEvalArray[evalMetric, "Testing.data",,,])
   ncols <- ncol(modEvalDF)
   
-  modAlgoRank <- sort(apply(modEvalDF, MARGIN = 1, FUN = bestAlgoFun), decreasing = TRUE)
+  modAlgoRank <- sort(apply(modEvalDF, MARGIN = 1, FUN = bestAlgoFun, na.rm = na.rm), decreasing = TRUE)
   bestAlgos <- names(modAlgoRank)[1:nrBestAlgos]
   
   
@@ -436,7 +437,7 @@ twoStepBestModelSelection <- function(biomodModelOut,
   topQtValues <- modEvalDF %>% 
     dplyr::filter(modAlgo %in% bestAlgos) %>% 
     dplyr::group_by(modAlgo) %>% 
-    dplyr::summarize(qts = stats::quantile(modEvalScore, probs = 1 - topFraction))
+    dplyr::summarize(qts = stats::quantile(modEvalScore, probs = 1 - topFraction, na.rm = na.rm))
   
   i <- 0
   selMods <- c()
