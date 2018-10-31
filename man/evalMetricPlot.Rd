@@ -5,8 +5,8 @@
 \title{Plot evaluation metrics calculated by biomod2}
 \usage{
 evalMetricPlot(biomodModelOut, evalMetric = "TSS", sort = TRUE,
-  removeFull = FALSE, save = FALSE, plot = TRUE, outputFolder = getwd(),
-  filename = "evalPlot.png", ...)
+  removeFull = FALSE, save = FALSE, plot = TRUE,
+  outputFolder = getwd(), filename = "evalPlot.png", ...)
 }
 \arguments{
 \item{biomodModelOut}{A \link[biomod2]{BIOMOD.models.out-class} class object}

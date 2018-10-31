@@ -6,8 +6,8 @@
 \usage{
 varImportancePlot(biomodModelsOut, by = "all", sortVars = TRUE,
   filterAlgos = NULL, plotType = "facet_wrap", save = FALSE,
-  plot = TRUE, outputFolder = getwd(), filename = "VarImportancePlot.png",
-  ...)
+  plot = TRUE, outputFolder = getwd(),
+  filename = "VarImportancePlot.png", na.rm = TRUE, ...)
 }
 \arguments{
 \item{biomodModelsOut}{A \link[biomod2]{BIOMOD.models.out-class} class object.}
@@ -32,6 +32,8 @@ algorithm and across PA sets and evaluation rounds}
 \link[ggplot2]{ggsave}) function}
 
 \item{filename}{Name of the image file to save}
+
+\item{na.rm}{Remove NA's?}
 
 \item{...}{Other parameters passed to \link[ggplot2]{ggsave}) function}
 }

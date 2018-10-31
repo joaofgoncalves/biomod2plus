@@ -5,7 +5,8 @@
 \title{Performs a two-stage best model selection}
 \usage{
 twoStepBestModelSelection(biomodModelOut, evalMetric = "TSS",
-  nrBestAlgos = 5, bestAlgoFun = stats::median, topFraction = 0.25)
+  nrBestAlgos = 5, bestAlgoFun = stats::median, topFraction = 0.25,
+  na.rm = TRUE)
 }
 \arguments{
 \item{biomodModelOut}{A \link[biomod2]{BIOMOD.models.out-class} class object}

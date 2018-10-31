@@ -5,7 +5,8 @@
 \title{Project multiple scenarios}
 \usage{
 projectMultipleScenarios(myBiomodModelOut, myBiomodProj, myBiomodEM,
-  modelsToUse, scenarioNames = NULL, rstStackList, convert2GeoTIFF = TRUE)
+  modelsToUse, scenarioNames = NULL, rstStackList,
+  convert2GeoTIFF = TRUE)
 }
 \arguments{
 \item{myBiomodModelOut}{A \link[biomod2]{BIOMOD.models.out-class} class object.}

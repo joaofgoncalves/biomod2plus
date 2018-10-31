@@ -10,5 +10,5 @@ Depends: R (>= 3.3.0)
 Imports: raster, dplyr, ggplot2, ggExtra, biomod2, tools, magrittr, tidyr, stringr, tidyselect, sp
 Suggests: stats, utils
 License: GPL-3
-RoxygenNote: 6.0.1
+RoxygenNote: 6.1.0
 Encoding: UTF-8
