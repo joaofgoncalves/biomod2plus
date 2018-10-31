@@ -418,19 +418,26 @@ twoStepBestModelSelection <- function(biomodModelOut,
             lapply(FUN = function(x) paste(x, collapse="_",sep="")) %>% 
             unlist(use.names = FALSE), sep="_") %>% 
     strsplit("_") %>% 
-    unlist %>% 
+    unlist %>%  
     matrix(ncol = 3, byrow = TRUE) %>%
     data.frame(modEvalScore = modEvalDF2$modScore, stringsAsFactors = FALSE) %>% 
     `colnames<-`(c("modAlgo","PAset","evalRun","modEvalScore"))
-  
+
   # Check if model evaluation score array only has one PA set
   if(dim(modEvalArray)[5]==1){
     modEvalDF[,"PAset"] <- "PA1"
   }
-  if(all(is.na(modEvalDF[,"PAset"])) | all(modEvalDF[,"PAset"]=="NA")){
-    modEvalDF[,"PAset"] <- "PA1"
-  }
   
+  # if(all(is.na(modEvalDF[,"PAset"])) | all(modEvalDF[,"PAset"]=="NA")){
+  #   modEvalDF[,"PAset"] <- "PA1"
+  # }
+  
+  # An ugly hack to correct for model calibrations with a single evaluation run!!!...
+  if((dim(modEvalArray)[4]==1)){
+    modEvalDF[,"PAset"] <- modEvalDF[,"evalRun"]
+    modEvalDF[,"evalRun"] <- "RUN1"
+  }
+
   # Calculate the top fraction quantile values for the best modelling algorithms
   # These will be used as cutoff values to select the best models
   #
