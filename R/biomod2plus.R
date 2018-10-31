@@ -666,6 +666,7 @@ responsePlots <- function(biomodModelOut, Data, modelsToUse, showVars = "all",
 #' @param outputFolder Output folder used to save the plot image (uses the 
 #' \link[ggplot2]{ggsave}) function
 #' @param filename Name of the image file to save
+#' @param na.rm Remove NA's?
 #' @param ... Other parameters passed to \link[ggplot2]{ggsave}) function
 #' 
 #' @return A list object containing:
@@ -700,9 +701,9 @@ responsePlots <- function(biomodModelOut, Data, modelsToUse, showVars = "all",
 #' 
 
 varImportancePlot <- function(biomodModelsOut, by = "all", sortVars = TRUE, 
-                              filterAlgos = NULL, plotType="facet_wrap",
-                              save=FALSE, plot=TRUE, outputFolder=getwd(), 
-                              filename="VarImportancePlot.png",...){ 
+                              filterAlgos = NULL, plotType = "facet_wrap",
+                              save = FALSE, plot = TRUE, outputFolder = getwd(), 
+                              filename = "VarImportancePlot.png", na.rm = TRUE, ...){ 
   
   # Calculate variable importance
   varImportance <- biomod2::get_variables_importance(biomodModelsOut)
@@ -710,9 +711,17 @@ varImportancePlot <- function(biomodModelsOut, by = "all", sortVars = TRUE,
   # Make plot for each variable and across all PA sets, Algos and eval rounds
   if(by=="all"){
     
+    stdErr <- function(x, na.rm = TRUE){
+      if(na.rm){
+        stats::sd(x, na.rm = na.rm)/sqrt(sum(!is.na(x)))
+      }else{
+        stats::sd(x)/sqrt(length(x))
+      }
+    } 
+    
     # Calculate average and std-error stats
-    varImportanceByVariableAVG <- apply(varImportance, 1, mean)
-    varImportanceByVariableSTE <- apply(varImportance, 1, function(x) stats::sd(x)/sqrt(length(x)))
+    varImportanceByVariableAVG <- apply(varImportance, 1, mean, na.rm = na.rm)
+    varImportanceByVariableSTE <- apply(varImportance, 1, stdErr, na.rm = na.rm)
     
     vimpDF <- data.frame(cnames = names(varImportanceByVariableAVG),
                          varImpAVG = varImportanceByVariableAVG, 
