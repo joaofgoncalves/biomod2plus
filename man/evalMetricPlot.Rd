@@ -6,7 +6,8 @@
 \usage{
 evalMetricPlot(biomodModelOut, evalMetric = "TSS", sort = TRUE,
   removeFull = FALSE, save = FALSE, plot = TRUE,
-  outputFolder = getwd(), filename = "evalPlot.png", ...)
+  outputFolder = getwd(), filename = "evalPlot.png", na.rm = TRUE,
+  ...)
 }
 \arguments{
 \item{biomodModelOut}{A \link[biomod2]{BIOMOD.models.out-class} class object}
@@ -24,6 +25,8 @@ evalMetricPlot(biomodModelOut, evalMetric = "TSS", sort = TRUE,
 \item{outputFolder}{Output folder where the plot will be save to (default: \code{getwd()})}
 
 \item{filename}{Filename of the image containing the plot (default:"evalPlot.png")}
+
+\item{na.rm}{Remove NA's?}
 
 \item{...}{Other arguments passed to \code{ggsave} function such as height, width, dpi, etc.}
 }

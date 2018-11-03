@@ -8,7 +8,7 @@ responsePlots(biomodModelOut, Data, modelsToUse, showVars = "all",
   fixedVarMetric = "mean", addMarginalPlot = TRUE,
   marginPlotType = "histogram", varNames = NULL, plotStdErr = FALSE,
   plot = FALSE, save = TRUE, filePrefix = "ResponsePlot_",
-  fileSuffix = "", outFolder = getwd(), ...)
+  fileSuffix = "", outFolder = getwd(), na.rm = TRUE, ...)
 }
 \arguments{
 \item{biomodModelOut}{A \link[biomod2]{BIOMOD.models.out-class} class object}
@@ -48,6 +48,8 @@ for each model selected (default: FALSE)}
 \item{fileSuffix}{Filename suffix (default: "")}
 
 \item{outFolder}{Output folder where the plot image will be placed (default: getwd())}
+
+\item{na.rm}{Remove NA's?}
 
 \item{...}{Other parameters passed to \link[ggplot2]{ggsave}}
 }

@@ -216,6 +216,7 @@ projectMultipleScenarios <- function(myBiomodModelOut, myBiomodProj, myBiomodEM,
 #' @param evalMetric A character string defining the evaluation metric. 
 #' Available options are: 'KAPPA', 'TSS', 'ROC', 'FAR', 'SR', 'ACCURACY', 'BIAS', 
 #' 'POD', 'CSI' and 'ETS'.
+#' @param na.rm Remove NA's?
 #' 
 #' @return The target quantile value.
 #' 
@@ -225,7 +226,7 @@ projectMultipleScenarios <- function(myBiomodModelOut, myBiomodProj, myBiomodEM,
 #' @export
 #' 
 
-getEvalMetricQuantile <- function(biomodModelOut, qt = 0.75, evalMetric = "TSS"){
+getEvalMetricQuantile <- function(biomodModelOut, qt = 0.75, evalMetric = "TSS", na.rm=TRUE){
   
   if(length(qt)>1){
     qt <- qt[1]
@@ -234,7 +235,7 @@ getEvalMetricQuantile <- function(biomodModelOut, qt = 0.75, evalMetric = "TSS")
   
   myBiomodModelEval <- biomod2::get_evaluations(biomodModelOut)
   evalDF <- as.data.frame(myBiomodModelEval[evalMetric,"Testing.data",,,])
-  quantileThresh <- stats::quantile(evalDF, probs = qt, na.rm=TRUE)
+  quantileThresh <- stats::quantile(evalDF, probs = qt, na.rm = na.rm)
   
   return(quantileThresh)
 }
@@ -367,6 +368,7 @@ powerFunPAnumberCalc <- function(nPresences, a = 45, b = -0.55){
 #' algorithm (default: median)
 #' @param topFraction Fraction of best-performing models for each selected modelling 
 #' technique 
+#' @param na.rm Remove NA's?
 #'
 #' @return A character vector with selected models
 #'
@@ -495,6 +497,7 @@ twoStepBestModelSelection <- function(biomodModelOut,
 #' @param filePrefix Filename prefix (default: "ResponsePlot_")
 #' @param fileSuffix Filename suffix (default: "")
 #' @param outFolder Output folder where the plot image will be placed (default: getwd())
+#' @param na.rm Remove NA's?
 #' @param ... Other parameters passed to \link[ggplot2]{ggsave}
 #' 
 #' @return A list object containing two components:     
@@ -543,7 +546,7 @@ responsePlots <- function(biomodModelOut, Data, modelsToUse, showVars = "all",
                           marginPlotType = "histogram", varNames = NULL,  
                           plotStdErr = FALSE, plot = FALSE, save = TRUE, 
                           filePrefix = "ResponsePlot_", 
-                          fileSuffix = "", outFolder = getwd(), ...){
+                          fileSuffix = "", outFolder = getwd(), na.rm = TRUE, ...){
   
   if(inherits(Data,"RasterStack")){
     cat("Loading data from RasterStack....")
@@ -557,6 +560,14 @@ responsePlots <- function(biomodModelOut, Data, modelsToUse, showVars = "all",
   
   if(showVars=="all"){
     showVars <- colnames(Data)
+  }
+  
+  stdErr <- function(x, na.rm = TRUE){
+    if(na.rm){
+      stats::sd(x, na.rm = na.rm)/sqrt(sum(!is.na(x)))
+    }else{
+      stats::sd(x)/sqrt(length(x))
+    }
   }
   
   respCurvesList <- list()
@@ -581,8 +592,8 @@ responsePlots <- function(biomodModelOut, Data, modelsToUse, showVars = "all",
     ##
     ##
     tmpDF <- data.frame(targetVar = respCurves[,1], 
-                        avgResp = apply(respCurves[,-1], 1, mean),
-                        stdErr = apply(respCurves[,-1], 1, function(x) stats::sd(x)/sqrt(length(x))))
+                        avgResp = apply(respCurves[,-1], 1, mean, na.rm = na.rm),
+                        stdErr = apply(respCurves[,-1], 1, stdErr, na.rm = na.rm))
     
     
     cn <- colnames(respCurves)
@@ -708,17 +719,17 @@ varImportancePlot <- function(biomodModelsOut, by = "all", sortVars = TRUE,
   # Calculate variable importance
   varImportance <- biomod2::get_variables_importance(biomodModelsOut)
   
+  stdErr <- function(x, na.rm = TRUE){
+    if(na.rm){
+      stats::sd(x, na.rm = na.rm)/sqrt(sum(!is.na(x)))
+    }else{
+      stats::sd(x)/sqrt(length(x))
+    }
+  }
+  
   # Make plot for each variable and across all PA sets, Algos and eval rounds
   if(by=="all"){
-    
-    stdErr <- function(x, na.rm = TRUE){
-      if(na.rm){
-        stats::sd(x, na.rm = na.rm)/sqrt(sum(!is.na(x)))
-      }else{
-        stats::sd(x)/sqrt(length(x))
-      }
-    } 
-    
+
     # Calculate average and std-error stats
     varImportanceByVariableAVG <- apply(varImportance, 1, mean, na.rm = na.rm)
     varImportanceByVariableSTE <- apply(varImportance, 1, stdErr, na.rm = na.rm)
@@ -746,13 +757,12 @@ varImportancePlot <- function(biomodModelsOut, by = "all", sortVars = TRUE,
     
     # Calculate average and std-error stats
     # The c(1,2) means average for each variable (row) and model algo (col)
-    varImportanceByVariableAVG <- apply(varImportance, c(1,2), mean) %>% 
+    varImportanceByVariableAVG <- apply(varImportance, c(1,2), mean, na.rm = na.rm) %>% 
       as.data.frame %>% 
       dplyr::mutate(varNames = as.factor(rownames(.))) %>% 
       tidyr::gather("modAlgo","varImpAVG",setdiff(colnames(.),"varNames"))
     
-    varImportanceByVariableSTE <- apply(varImportance, c(1,2), 
-                                        function(x) stats::sd(x)/sqrt(length(x))) %>% 
+    varImportanceByVariableSTE <- apply(varImportance, c(1,2), stdErr, na.rm = na.rm) %>% 
       as.data.frame %>% 
       dplyr::mutate(varNames = as.factor(rownames(.))) %>% 
       tidyr::gather("modAlgo","varImpSTE",setdiff(colnames(.),"varNames"))
@@ -767,7 +777,7 @@ varImportancePlot <- function(biomodModelsOut, by = "all", sortVars = TRUE,
     }
     
     # Make ggplot object with var importance scores
-    g <- ggplot2::ggplot(vimpDF,ggplot2::aes(x= varNames, y = varImpAVG)) + 
+    g <- ggplot2::ggplot(vimpDF,ggplot2::aes(x = varNames, y = varImpAVG)) + 
           ggplot2::geom_bar(stat="identity") + 
           ggplot2::geom_errorbar(aes(ymin = varImpAVG - 2*varImpSTE, 
                                      ymax = varImpAVG + 2*varImpSTE), 
@@ -815,6 +825,7 @@ varImportancePlot <- function(biomodModelsOut, by = "all", sortVars = TRUE,
 #' @param plot Plot to device? (default: TRUE)
 #' @param outputFolder Output folder where the plot will be save to (default: \code{getwd()})
 #' @param filename Filename of the image containing the plot (default:"evalPlot.png")
+#' @param na.rm Remove NA's?
 #' @param ... Other arguments passed to \code{ggsave} function such as height, width, dpi, etc.
 #' 
 #' @return A list object with the following components:
@@ -849,7 +860,7 @@ varImportancePlot <- function(biomodModelsOut, by = "all", sortVars = TRUE,
 
 evalMetricPlot <- function(biomodModelOut, evalMetric = "TSS", sort = TRUE, 
                            removeFull=FALSE, save=FALSE, plot=TRUE, outputFolder=getwd(),
-                           filename="evalPlot.png", ...){
+                           filename="evalPlot.png", na.rm = TRUE, ...){
   
   myBiomodModelEval <- biomod2::get_evaluations(biomodModelOut)
   
@@ -859,10 +870,18 @@ evalMetricPlot <- function(biomodModelOut, evalMetric = "TSS", sort = TRUE,
     evalDF <- dplyr::select(evalDF, -tidyselect::starts_with("FULL"))
   }
   
+  stdErr <- function(x, na.rm = TRUE){
+    if(na.rm){
+      stats::sd(x, na.rm = na.rm)/sqrt(sum(!is.na(x)))
+    }else{
+      stats::sd(x)/sqrt(length(x))
+    }
+  } 
+  
   evalDFsummary <- data.frame(
     algoName = rownames(evalDF),
-    evalScoreAVG = apply(evalDF, 1, mean),
-    evalScoreSTE = apply(evalDF, 1, function(x) stats::sd(x)/sqrt(length(x)))) %>% 
+    evalScoreAVG = apply(evalDF, 1, mean, na.rm = na.rm),
+    evalScoreSTE = apply(evalDF, 1, stdErr, na.rm = na.rm)) %>% 
     dplyr::arrange(dplyr::desc(evalScoreAVG))
   
   if(sort){

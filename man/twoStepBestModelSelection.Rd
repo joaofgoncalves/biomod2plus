@@ -22,6 +22,8 @@ algorithm (default: median)}
 
 \item{topFraction}{Fraction of best-performing models for each selected modelling 
 technique}
+
+\item{na.rm}{Remove NA's?}
 }
 \value{
 A character vector with selected models

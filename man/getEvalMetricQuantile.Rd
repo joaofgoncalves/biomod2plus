@@ -4,7 +4,8 @@
 \alias{getEvalMetricQuantile}
 \title{Calculate the quantile of an evaluation metric}
 \usage{
-getEvalMetricQuantile(biomodModelOut, qt = 0.75, evalMetric = "TSS")
+getEvalMetricQuantile(biomodModelOut, qt = 0.75, evalMetric = "TSS",
+  na.rm = TRUE)
 }
 \arguments{
 \item{biomodModelOut}{A \link[biomod2]{BIOMOD.models.out-class} class object.}
@@ -14,6 +15,8 @@ getEvalMetricQuantile(biomodModelOut, qt = 0.75, evalMetric = "TSS")
 \item{evalMetric}{A character string defining the evaluation metric. 
 Available options are: 'KAPPA', 'TSS', 'ROC', 'FAR', 'SR', 'ACCURACY', 'BIAS', 
 'POD', 'CSI' and 'ETS'.}
+
+\item{na.rm}{Remove NA's?}
 }
 \value{
 The target quantile value.
