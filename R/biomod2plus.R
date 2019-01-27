@@ -914,3 +914,29 @@ evalMetricPlot <- function(biomodModelOut, evalMetric = "TSS", sort = TRUE,
 }
 
 
+#' Check raster stacks for Maxent
+#'
+#' Checks a \code{RasterStack} object to avoid problems during Maxent (Phillips) projection step
+#' 
+#' @param x A \code{RasterStack} object to check
+#'
+#' @return A new and checked \code{RasterStack}
+#'
+#' @note This is based on Damien Georges suggestion at: 
+#' \url{https://r-forge.r-project.org/forum/message.php?msg_id=42888&group_id=302}
+#'
+checkRasterStack <- function(x){
+  
+  ## function to define the intersect of rasters
+  intersect_mask <- function(x){
+    values_x <- getValues(x)
+    inter_x <- values_x %*% rep(1,nlayers(x))
+    mask <- setValues(subset(x,1),values = (inter_x>0))
+    return(mask)
+  }
+  
+  out <- stack(mask(x, intersect_mask(x)))
+  return(out)
+}
+
+
