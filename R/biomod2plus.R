@@ -936,6 +936,7 @@ checkRasterStack <- function(x){
   }
   
   out <- stack(mask(x, intersect_mask(x)))
+  names(out) <- names(x)
   return(out)
 }
 
