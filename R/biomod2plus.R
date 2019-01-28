@@ -925,6 +925,9 @@ evalMetricPlot <- function(biomodModelOut, evalMetric = "TSS", sort = TRUE,
 #' @note This is based on Damien Georges suggestion at: 
 #' \url{https://r-forge.r-project.org/forum/message.php?msg_id=42888&group_id=302}
 #'
+#' @export
+#' 
+
 checkRasterStack <- function(x){
   
   ## function to define the intersect of rasters
