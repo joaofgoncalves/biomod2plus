@@ -499,6 +499,7 @@ twoStepBestModelSelection <- function(biomodModelOut,
 #' @param outFolder Output folder where the plot image will be placed (default: getwd())
 #' @param na.rm Remove NA's?
 #' @param ... Other parameters passed to \link[ggplot2]{ggsave}
+#' @param saveCSV Save plot data to CSV file? (default: FALSE)
 #' 
 #' @return A list object containing two components:     
 #' \itemize{
@@ -516,6 +517,9 @@ twoStepBestModelSelection <- function(biomodModelOut,
 #' 
 #' To use this function, first the selected models have to loaded to the Global Environment 
 #' using the \link[biomod2]{BIOMOD_LoadModels} function. 
+#' 
+#' @note Updating the ggExtra package to version: 0.8.1 solved an issue in the marginalPlot function (July-2019)
+#' 
 #' 
 #' @seealso 
 #' \link[biomod2]{response.plot2}   
@@ -537,14 +541,16 @@ twoStepBestModelSelection <- function(biomodModelOut,
 #' @importFrom stats na.omit
 #' @importFrom utils setTxtProgressBar
 #' @importFrom utils txtProgressBar
+#' @importFrom dplyr group_by
+#' @importFrom dplyr summarise
 #' 
 #' @export
 #' 
 
 responsePlots <- function(biomodModelOut, Data, modelsToUse, showVars = "all", 
-                          fixedVarMetric = 'mean', addMarginalPlot = TRUE, 
+                          fixedVarMetric = 'mean', addMarginalPlot = FALSE, 
                           marginPlotType = "histogram", varNames = NULL,  
-                          plotStdErr = FALSE, plot = FALSE, save = TRUE, 
+                          plotStdErr = FALSE, plot = FALSE, save = TRUE, saveCSV = FALSE,
                           filePrefix = "ResponsePlot_", 
                           fileSuffix = "", outFolder = getwd(), na.rm = TRUE, ...){
   
@@ -564,9 +570,9 @@ responsePlots <- function(biomodModelOut, Data, modelsToUse, showVars = "all",
   
   stdErr <- function(x, na.rm = TRUE){
     if(na.rm){
-      stats::sd(x, na.rm = na.rm)/sqrt(sum(!is.na(x)))
+      stats::sd(x, na.rm = na.rm) / sqrt(sum(!is.na(x)))
     }else{
-      stats::sd(x)/sqrt(length(x))
+      stats::sd(x) / sqrt(length(x))
     }
   }
   
@@ -579,6 +585,8 @@ responsePlots <- function(biomodModelOut, Data, modelsToUse, showVars = "all",
   
   for(modVar in showVars){
     
+    #print(modVar)
+    
     k<-k+1
     respCurves <- as.data.frame(biomod2::response.plot2(models = modelsToUse,
                                                Data = Data,
@@ -588,15 +596,26 @@ responsePlots <- function(biomodModelOut, Data, modelsToUse, showVars = "all",
                                                plot = FALSE,
                                                save.file = "no"))
     
+    # print("Finished response.plot2()!!")
+    
     ## Make one plot per variable ------------------------------------------------- ##
     ##
     ##
-    tmpDF <- data.frame(targetVar = respCurves[,1], 
-                        avgResp = apply(respCurves[,-1], 1, mean, na.rm = na.rm),
-                        stdErr = apply(respCurves[,-1], 1, stdErr, na.rm = na.rm))
+    # tmpDF <- data.frame(targetVar = respCurves[,1], 
+    #                     avgResp = apply(respCurves[,-1], 1, mean, na.rm = na.rm),
+    #                     stdErr = apply(respCurves[,-1], 1, stdErr, na.rm = na.rm))
     
+    tmpDF <- respCurves %>% 
+      dplyr::group_by(as.numeric(.data$id)) %>% 
+      dplyr::summarise(targetVar = dplyr::first(.data$expl.val),
+                       avgResp   = mean(.data$pred.val),
+                       stdErr    = stdErr(.data$pred.val)) %>% 
+      as.data.frame 
+     
+    colnames(tmpDF)[1] <- "SeqID"
     
-    cn <- colnames(respCurves)
+    #cn <- colnames(respCurves)
+    cn <- unique(respCurves$pred.name)
     
     ## Create plot with response lines per PA/eval_round
     if(!plotStdErr){
@@ -618,10 +637,11 @@ responsePlots <- function(biomodModelOut, Data, modelsToUse, showVars = "all",
       
       # Create plot with average and std-error curves/bands  
     }else{
-      g <- ggplot2::ggplot(tmpDF,aes(x = targetVar)) + 
-            ggplot2::geom_ribbon(aes(ymin = avgResp - 2*stdErr, ymax = avgResp + 2*stdErr), 
+      g <- ggplot2::ggplot(tmpDF, aes(x = targetVar, y = avgResp)) + 
+            ggplot2::geom_ribbon(aes(ymin = avgResp - 2*stdErr, 
+                                     ymax = avgResp + 2*stdErr), 
                         alpha = 0.3, fill = "dark blue") + 
-            ggplot2::geom_line(aes(y = avgResp)) + 
+            ggplot2::geom_line() + 
             ggplot2::xlab(modVar) + 
             ggplot2::ylab("Response") + 
             ggplot2::theme_bw()
@@ -632,8 +652,12 @@ responsePlots <- function(biomodModelOut, Data, modelsToUse, showVars = "all",
     if(addMarginalPlot){
       
       minVal <- min(tmpDF$avgResp)
-      g <- g + ggplot2::geom_point(mapping = ggplot2::aes_string(y = minVal, x = modVar), 
+      g <- g + ggplot2::geom_point(mapping = ggplot2::aes_string(y = minVal, x = modVar),
                           data = Data, alpha = 0)
+      
+      # !! Updating to the latest version of ggExtra solved an issue when adding the marginal
+      # plot
+      #ggExtra::ggMarginal(g, margins = "x", type = marginPlotType)
       g <- ggExtra::ggMarginal(g, margins = "x", type = marginPlotType)
     }
     
@@ -648,12 +672,18 @@ responsePlots <- function(biomodModelOut, Data, modelsToUse, showVars = "all",
                               plot = g, ...))
     }
     
+    if(saveCSV){
+      suppressMessages(write.csv(tmpDF, file = paste(outFolder,"/",filePrefix,modVar,fileSuffix,".csv",sep=""), 
+                                 row.names = FALSE))
+    }
+    
     # Save data to an object
     respCurvesList[["DATA"]][[modVar]] <- respCurves
     respCurvesList[["PLOTS"]][[modVar]] <- g
     
     utils::setTxtProgressBar(pb, k)
   }
+  
   invisible(respCurvesList)
 }
 
@@ -859,11 +889,14 @@ varImportancePlot <- function(biomodModelsOut, by = "all", sortVars = TRUE,
 #' 
 
 evalMetricPlot <- function(biomodModelOut, evalMetric = "TSS", sort = TRUE, 
-                           removeFull=FALSE, save=FALSE, plot=TRUE, outputFolder=getwd(),
-                           filename="evalPlot.png", na.rm = TRUE, ...){
+                           removeFull = FALSE, save = FALSE, plot = TRUE, 
+                           outputFolder = getwd(), filename="evalPlot.png", 
+                           na.rm = TRUE, ...){
   
+  # Get model evaluations from object data
   myBiomodModelEval <- biomod2::get_evaluations(biomodModelOut)
   
+  # Convert array to data frame object
   evalDF <- as.data.frame(myBiomodModelEval[evalMetric,"Testing.data",,,])
   
   if(removeFull){
@@ -878,13 +911,18 @@ evalMetricPlot <- function(biomodModelOut, evalMetric = "TSS", sort = TRUE,
     }
   } 
   
+  # Summarize by algorithm
   evalDFsummary <- data.frame(
     algoName = rownames(evalDF),
     evalScoreAVG = apply(evalDF, 1, mean, na.rm = na.rm),
     evalScoreSTE = apply(evalDF, 1, stdErr, na.rm = na.rm)) %>% 
     dplyr::arrange(dplyr::desc(evalScoreAVG))
   
+  #print(evalDF)
+  #print(evalDFsummary)
+  
   if(sort){
+    # Reorder bars by best to worst mod algo
     evalDFsummary[,"algoName"] <- factor(evalDFsummary$algoName, evalDFsummary$algoName,
                                          labels = evalDFsummary$algoName)
   }
@@ -896,7 +934,7 @@ evalMetricPlot <- function(biomodModelOut, evalMetric = "TSS", sort = TRUE,
         ggplot2::theme_bw() + 
         ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1, vjust=1)) + 
         ggplot2::ylab(paste(evalMetric,"score")) + 
-        ggplot2::xlab("Variables")
+        ggplot2::xlab("Modelling algorithms")
   
   if(plot){
     plot(g)
@@ -943,4 +981,27 @@ checkRasterStack <- function(x){
   return(out)
 }
 
+#' Compare maps to assess range shifts
+#' 
+#' A generic function to assess distributional range shifts 
+#' by comparing to SDM maps for two distinct time steps
+#' 
+#' 
+#' @param r1 A raster object with presence/absence (1/0) data for a given at t=0 
+#' @param r2 A raster object with presence/absence (1/0) data for a given at t=1
+#' 
+#' @return An integer raster object with four classes: (1) "stable" unsuitable, 
+#' (2) Gain, (3) "stable" suitable, and, (4) loss.
+#' 
+#' @export
 
+speciesDistribChange <- function(r1, r2){
+  
+  rr1 <- r1
+  rr1[(r1==0) & (r2==0)] <- 1 # Stable unsuitable
+  rr1[(r1==0) & (r2==1)] <- 2 # Gain
+  rr1[(r1==1) & (r2==1)] <- 3 # Stable suitable
+  rr1[(r1==1) & (r2==0)] <- 4 # Loss
+  
+  return(rr1)
+}
